@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RxExposed — Drug Price Truth</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --bg:#0A0A0F; --bg2:#111118; --bg3:#18181F; --border:#2A2A35;
+      --text:#F0F0F0; --muted:#7A7A8A; --red:#E63946; --red-dim:rgba(230,57,70,0.12);
+      --teal:#2EC4B6; --teal-dim:rgba(46,196,182,0.10); --amber:#FFB703; --amber-dim:rgba(255,183,3,0.12);
+      --green:#4CAF50; --green-dim:rgba(76,175,80,0.12);
+      --mono:'JetBrains Mono',monospace; --display:'Space Grotesk',sans-serif; --body:'Inter',sans-serif;
+    }
+    html { scroll-behavior:smooth; }
+    body { background:var(--bg); color:var(--text); font-family:var(--body); min-height:100vh; line-height:1.6; }
+
+    /* HEADER */
+    header { border-bottom:1px solid var(--border); padding:0 2rem; display:flex; align-items:center; justify-content:space-between; height:56px; position:sticky; top:0; background:rgba(10,10,15,0.92); backdrop-filter:blur(12px); z-index:100; }
+    .logo { font-family:var(--display); font-weight:700; font-size:1.1rem; letter-spacing:-0.02em; }
+    .logo-dot { color:var(--red); }
+    .header-badge { font-size:0.7rem; font-family:var(--mono); color:var(--muted); border:1px solid var(--border); padding:2px 8px; border-radius:2px; letter-spacing:0.08em; }
+
+    /* HERO */
+    .hero { max-width:900px; margin:0 auto; padding:5rem 2rem 3rem; text-align:center; }
+    .hero-eyebrow { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.15em; color:var(--red); text-transform:uppercase; margin-bottom:1.25rem; }
+    .hero h1 { font-family:var(--display); font-size:clamp(2.2rem,5vw,3.6rem); font-weight:700; line-height:1.1; letter-spacing:-0.03em; margin-bottom:1.25rem; }
+    .hero h1 span { color:var(--red); }
+    .hero-sub { font-size:1.05rem; color:var(--muted); max-width:520px; margin:0 auto 2.5rem; line-height:1.7; }
+
+    /* TAB SWITCHER */
+    .tab-wrap { max-width:900px; margin:0 auto; padding:0 2rem; display:flex; gap:0; border-bottom:1px solid var(--border); }
+    .tab-btn { font-family:var(--display); font-size:0.88rem; font-weight:600; padding:0.75rem 1.5rem; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.2s; letter-spacing:0.01em; }
+    .tab-btn.active { color:var(--text); border-bottom-color:var(--red); }
+    .tab-btn:hover { color:var(--text); }
+
+    /* SEARCH */
+    .search-section { max-width:900px; margin:0 auto; padding:2rem 2rem 0; }
+    .search-wrap { position:relative; max-width:620px; }
+    .search-wrap.full { max-width:100%; }
+    .search-row { display:flex; gap:0.75rem; flex-wrap:wrap; }
+    .search-input { flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--border); color:var(--text); font-family:var(--display); font-size:1rem; padding:0.85rem 1.1rem; border-radius:4px; outline:none; transition:border-color 0.2s; }
+    .search-input:focus { border-color:var(--red); }
+    .search-input::placeholder { color:var(--muted); }
+    .search-select { background:var(--bg2); border:1px solid var(--border); color:var(--text); font-family:var(--display); font-size:0.9rem; padding:0.85rem 1rem; border-radius:4px; outline:none; cursor:pointer; min-width:160px; }
+    .search-select:focus { border-color:var(--red); }
+    .search-btn { background:var(--red); color:#fff; border:none; font-family:var(--display); font-weight:600; font-size:0.85rem; padding:0.85rem 1.4rem; border-radius:2px; cursor:pointer; letter-spacing:0.03em; transition:opacity 0.2s; white-space:nowrap; }
+    .search-btn:hover { opacity:0.85; }
+    .search-suggestions { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.85rem; }
+    .suggestion-pill { font-family:var(--mono); font-size:0.72rem; color:var(--muted); border:1px solid var(--border); padding:4px 10px; border-radius:2px; cursor:pointer; transition:all 0.15s; letter-spacing:0.04em; }
+    .suggestion-pill:hover { border-color:var(--red); color:var(--text); }
+
+    /* STATS BAR */
+    .stats-bar { border-top:1px solid var(--border); border-bottom:1px solid var(--border); display:flex; justify-content:center; gap:0; margin:2.5rem 0 0; overflow-x:auto; }
+    .stat-item { padding:1.1rem 2.5rem; border-right:1px solid var(--border); text-align:center; white-space:nowrap; }
+    .stat-item:last-child { border-right:none; }
+    .stat-num { font-family:var(--mono); font-size:1.5rem; font-weight:600; color:var(--red); display:block; }
+    .stat-label { font-size:0.72rem; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; }
+
+    /* RESULTS */
+    #results { max-width:900px; margin:0 auto; padding:2rem; }
+
+    /* DRUG CARD */
+    .result-card { background:var(--bg2); border:1px solid var(--border); border-radius:4px; overflow:hidden; margin-bottom:1.5rem; }
+    .drug-header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; }
+    .drug-name { font-family:var(--display); font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; }
+    .drug-generic { font-family:var(--mono); font-size:0.78rem; color:var(--muted); margin-top:0.2rem; }
+    .drug-use { font-size:0.82rem; color:var(--muted); margin-top:0.4rem; }
+    .markup-badge { font-family:var(--mono); font-size:0.78rem; font-weight:600; background:var(--red-dim); color:var(--red); border:1px solid var(--red); padding:4px 10px; border-radius:2px; white-space:nowrap; }
+    .price-row { display:grid; grid-template-columns:1fr 180px 80px; align-items:center; padding:0.9rem 2rem; border-bottom:1px solid var(--border); gap:1rem; }
+    .price-row:last-child { border-bottom:none; }
+    .price-row.us-row { background:var(--red-dim); }
+    .price-row.negotiated-row { background:rgba(46,196,182,0.05); }
+    .country-info { display:flex; align-items:center; gap:0.75rem; }
+    .country-flag { font-size:1.3rem; line-height:1; }
+    .country-name { font-family:var(--display); font-size:0.9rem; font-weight:500; }
+    .country-label { font-family:var(--mono); font-size:0.68rem; color:var(--muted); letter-spacing:0.06em; display:block; margin-top:1px; }
+    .price-amount { font-family:var(--mono); font-size:1.1rem; font-weight:600; text-align:right; }
+    .price-amount.us { color:var(--red); }
+    .price-amount.intl { color:var(--teal); }
+    .price-amount.negotiated { color:var(--teal); }
+    .gap-bar-wrap { padding:0 2rem; background:var(--bg3); border-top:1px solid var(--border); }
+    .gap-bar-label { font-family:var(--mono); font-size:0.68rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; padding:1rem 0 0.6rem; }
+    .gap-bars { display:flex; flex-direction:column; gap:0.5rem; padding-bottom:1.25rem; }
+    .gap-row { display:flex; align-items:center; gap:0.75rem; }
+    .gap-country { font-family:var(--mono); font-size:0.7rem; color:var(--muted); width:80px; flex-shrink:0; text-align:right; }
+    .gap-track { flex:1; height:6px; background:var(--border); border-radius:1px; overflow:hidden; }
+    .gap-fill { height:100%; border-radius:1px; transition:width 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .gap-fill.us { background:var(--red); }
+    .gap-fill.intl { background:var(--teal); }
+    .gap-price { font-family:var(--mono); font-size:0.7rem; width:70px; flex-shrink:0; }
+    .gap-price.us { color:var(--red); }
+    .gap-price.intl { color:var(--teal); }
+    .patent-strip { background:var(--amber-dim); border-top:1px solid rgba(255,183,3,0.25); padding:1rem 2rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+    .patent-icon { font-size:1.1rem; }
+    .patent-text { font-size:0.83rem; line-height:1.5; }
+    .patent-text strong { color:var(--amber); font-family:var(--mono); }
+    .source-note { padding:0.75rem 2rem; border-top:1px solid var(--border); font-family:var(--mono); font-size:0.65rem; color:var(--muted); letter-spacing:0.04em; line-height:1.7; }
+
+    /* DOCTOR CARD */
+    .doctor-card { background:var(--bg2); border:1px solid var(--border); border-radius:4px; overflow:hidden; margin-bottom:1.5rem; }
+    .doctor-header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; }
+    .doctor-name { font-family:var(--display); font-size:1.4rem; font-weight:700; letter-spacing:-0.02em; }
+    .doctor-meta { font-family:var(--mono); font-size:0.78rem; color:var(--muted); margin-top:0.3rem; }
+    .privacy-note { font-family:var(--mono); font-size:0.65rem; color:var(--muted); margin-top:0.4rem; border:1px solid var(--border); padding:3px 8px; border-radius:2px; display:inline-block; }
+
+    /* CONFLICT SCORE */
+    .score-wrap { display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem; }
+    .score-badge { font-family:var(--mono); font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:2px; border:1px solid; white-space:nowrap; }
+    .score-badge.High { background:var(--red-dim); color:var(--red); border-color:var(--red); }
+    .score-badge.Moderate { background:var(--amber-dim); color:var(--amber); border-color:var(--amber); }
+    .score-badge.Low { background:var(--green-dim); color:var(--green); border-color:var(--green); }
+    .score-num { font-family:var(--mono); font-size:0.7rem; color:var(--muted); }
+
+    /* DOCTOR SECTIONS */
+    .doctor-section { border-top:1px solid var(--border); }
+    .section-title { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:0.85rem 2rem; background:var(--bg3); border-bottom:1px solid var(--border); }
+    .payment-row { display:grid; grid-template-columns:1fr 140px 100px; align-items:center; padding:0.85rem 2rem; border-bottom:1px solid var(--border); gap:1rem; }
+    .payment-row:last-child { border-bottom:none; }
+    .payment-company { font-family:var(--display); font-size:0.88rem; font-weight:500; }
+    .payment-drug { font-family:var(--mono); font-size:0.7rem; color:var(--muted); margin-top:2px; }
+    .payment-type { font-family:var(--mono); font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; text-align:center; }
+    .payment-amount { font-family:var(--mono); font-size:1rem; font-weight:600; color:var(--red); text-align:right; }
+    .prescribe-row { display:grid; grid-template-columns:1fr 120px 120px; align-items:center; padding:0.85rem 2rem; border-bottom:1px solid var(--border); gap:1rem; }
+    .prescribe-row:last-child { border-bottom:none; }
+    .prescribe-drug { font-family:var(--display); font-size:0.88rem; font-weight:500; }
+    .prescribe-generic { font-family:var(--mono); font-size:0.7rem; color:var(--muted); margin-top:2px; }
+    .prescribe-count { font-family:var(--mono); font-size:0.9rem; font-weight:600; color:var(--teal); text-align:right; }
+    .prescribe-vs { font-family:var(--mono); font-size:0.75rem; text-align:right; }
+    .prescribe-vs.over { color:var(--red); }
+    .prescribe-vs.normal { color:var(--green); }
+
+    /* CONFLICT SUMMARY */
+    .conflict-summary { padding:1.25rem 2rem; background:var(--bg3); border-top:1px solid var(--border); }
+    .conflict-text { font-size:0.85rem; line-height:1.7; color:var(--muted); }
+    .conflict-text strong { color:var(--text); }
+
+    /* TOTAL BAR */
+    .total-bar { display:flex; justify-content:space-between; align-items:center; padding:1rem 2rem; border-top:1px solid var(--border); background:var(--bg3); }
+    .total-label { font-family:var(--mono); font-size:0.72rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+    .total-amount { font-family:var(--mono); font-size:1.2rem; font-weight:600; color:var(--red); }
+
+    /* DISCLAIMER */
+    .disclaimer { max-width:900px; margin:0 auto; padding:0 2rem 2rem; }
+    .disclaimer-box { background:var(--bg2); border:1px solid var(--border); border-left:3px solid var(--muted); padding:1rem 1.25rem; font-size:0.78rem; color:var(--muted); line-height:1.7; border-radius:2px; }
+
+    /* PHASE PILLS */
+    .phase-banner { max-width:900px; margin:0 auto; padding:1.5rem 2rem 0; display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .phase-pill { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.08em; padding:3px 9px; border-radius:2px; border:1px solid; }
+    .phase-pill.active { background:var(--teal-dim); border-color:var(--teal); color:var(--teal); }
+    .phase-pill.coming { border-color:var(--border); color:var(--muted); }
+
+    .state-msg { text-align:center; padding:4rem 2rem; color:var(--muted); font-family:var(--mono); font-size:0.85rem; letter-spacing:0.04em; }
+    .loading-dots::after { content:''; animation:dots 1.2s steps(3,end) infinite; }
+    @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} 100%{content:''} }
+
+    footer { border-top:1px solid var(--border); margin-top:4rem; padding:2rem; text-align:center; font-family:var(--mono); font-size:0.68rem; color:var(--muted); letter-spacing:0.06em; line-height:2; }
+
+    @media(max-width:640px) {
+      .price-row { grid-template-columns:1fr 120px; }
+      .price-row>:last-child { display:none; }
+      .payment-row { grid-template-columns:1fr 90px; }
+      .payment-row>.payment-type { display:none; }
+      .prescribe-row { grid-template-columns:1fr 80px; }
+      .prescribe-row>.prescribe-vs { display:none; }
+      .tab-btn { padding:0.75rem 1rem; font-size:0.8rem; }
+      .search-row { flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Rx<span class="logo-dot">Exposed</span></div>
+  <div class="header-badge">PHASE 1–2 BETA</div>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">Public data. Uncomfortable truths.</div>
+  <h1>What pharma charges you.<br><span>What pharma pays your doctor.</span></h1>
+  <p class="hero-sub">Search any drug to see international price gaps — or look up a doctor to see their pharma payments and prescribing patterns.</p>
+</section>
+
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-num">$13.2B</span><span class="stat-label">paid to doctors in 2024</span></div>
+  <div class="stat-item"><span class="stat-num">3–8×</span><span class="stat-label">US markup vs. other nations</span></div>
+  <div class="stat-item"><span class="stat-num">16M+</span><span class="stat-label">payment records public</span></div>
+  <div class="stat-item"><span class="stat-num">$300B</span><span class="stat-label">patents expiring by 2030</span></div>
+</div>
+
+<!-- TAB SWITCHER -->
+<div class="tab-wrap">
+  <button class="tab-btn active" onclick="switchTab('drug')">💊 Drug Prices</button>
+  <button class="tab-btn" onclick="switchTab('doctor')">🩺 Doctor Payments</button>
+</div>
+
+<!-- DRUG SEARCH -->
+<div class="search-section" id="tab-drug">
+  <div class="search-wrap">
+    <div class="search-row">
+      <input class="search-input" id="drugInput" type="text" placeholder="Search a drug — e.g. Ozempic, Humira, Eliquis…" autocomplete="off" spellcheck="false"/>
+      <button class="search-btn" onclick="handleDrugSearch()">SEARCH</button>
+    </div>
+  </div>
+  <div class="search-suggestions">
+    <span class="suggestion-pill" onclick="quickDrug('Ozempic')">Ozempic</span>
+    <span class="suggestion-pill" onclick="quickDrug('Humira')">Humira</span>
+    <span class="suggestion-pill" onclick="quickDrug('Eliquis')">Eliquis</span>
+    <span class="suggestion-pill" onclick="quickDrug('Keytruda')">Keytruda</span>
+    <span class="suggestion-pill" onclick="quickDrug('Jardiance')">Jardiance</span>
+    <span class="suggestion-pill" onclick="quickDrug('Xarelto')">Xarelto</span>
+  </div>
+</div>
+
+<!-- DOCTOR SEARCH -->
+<div class="search-section" id="tab-doctor" style="display:none">
+  <div class="search-wrap full">
+    <div class="search-row">
+      <input class="search-input" id="doctorInput" type="text" placeholder="Doctor last name — e.g. Johnson, Williams…" autocomplete="off" spellcheck="false"/>
+      <select class="search-select" id="doctorSpecialty">
+        <option value="">All Specialties</option>
+        <option>Cardiologist</option>
+        <option>Endocrinologist</option>
+        <option>Oncologist</option>
+        <option>Rheumatologist</option>
+        <option>Neurologist</option>
+        <option>Psychiatrist</option>
+        <option>Dermatologist</option>
+      </select>
+      <select class="search-select" id="doctorState">
+        <option value="">All States</option>
+        <option>AL</option><option>AK</option><option>AZ</option><option>AR</option>
+        <option>CA</option><option>CO</option><option>CT</option><option>DE</option>
+        <option>FL</option><option>GA</option><option>HI</option><option>ID</option>
+        <option>IL</option><option>IN</option><option>IA</option><option>KS</option>
+        <option>KY</option><option>LA</option><option>ME</option><option>MD</option>
+        <option>MA</option><option>MI</option><option>MN</option><option>MS</option>
+        <option>MO</option><option>MT</option><option>NE</option><option>NV</option>
+        <option>NH</option><option>NJ</option><option>NM</option><option>NY</option>
+        <option>NC</option><option>ND</option><option>OH</option><option>OK</option>
+        <option>OR</option><option>PA</option><option>RI</option><option>SC</option>
+        <option>SD</option><option>TN</option><option>TX</option><option>UT</option>
+        <option>VT</option><option>VA</option><option>WA</option><option>WV</option>
+        <option>WI</option><option>WY</option>
+      </select>
+      <button class="search-btn" onclick="handleDoctorSearch()">SEARCH</button>
+    </div>
+  </div>
+  <div class="search-suggestions">
+    <span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);letter-spacing:0.06em">TRY:</span>
+    <span class="suggestion-pill" onclick="quickDoctor('Johnson','Cardiologist','TX')">Johnson · Cardiology · TX</span>
+    <span class="suggestion-pill" onclick="quickDoctor('Williams','Endocrinologist','CA')">Williams · Endocrinology · CA</span>
+    <span class="suggestion-pill" onclick="quickDoctor('Martinez','Oncologist','NY')">Martinez · Oncology · NY</span>
+    <span class="suggestion-pill" onclick="quickDoctor('Chen','Rheumatologist','FL')">Chen · Rheumatology · FL</span>
+  </div>
+</div>
+
+<div class="phase-banner">
+  <span class="phase-pill active">✓ PHASE 1 — DRUG PRICING</span>
+  <span class="phase-pill active">✓ PHASE 2 — DOCTOR PAYMENTS</span>
+  <span class="phase-pill coming">PHASE 3 — HOSPITAL DATA</span>
+  <span class="phase-pill coming">PHASE 4 — ALERTS + PRO</span>
+</div>
+
+<div id="results"></div>
+
+<div class="disclaimer" id="disclaimer" style="display:none">
+  <div class="disclaimer-box">
+    <strong>Data sources & disclaimer:</strong> Drug pricing from GoodRx public data, OECD Health Statistics, NHS Drug Tariff, Health Canada, and CMS MFP files. Doctor payment data sourced from CMS Open Payments (Sunshine Act) — a federally mandated public disclosure program. Prescribing data from Medicare Part D public files. <strong>Financial relationships do not imply wrongdoing.</strong> Payments data reflects Medicare patients only and may not represent all prescribing activity. This tool is for informational purposes only.
+  </div>
+</div>
+
+<footer>
+  RxExposed · All data sourced from US government and international public health agencies<br>
+  CMS Open Payments · Medicare Part D · FDA Orange Book · OECD · NHS · Health Canada<br><br>
+  Hospital data coming in Phase 3 &nbsp;·&nbsp; Alerts + Pro in Phase 4
+</footer>
+
+<script>
+  // ── SUPABASE CONFIG — replace these two values ──
+  const SUPABASE_URL = 'https://lcvtjbluyacymuueelrg.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdnRqYmx1eWFjeW11dWVlbHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTQ0MDUsImV4cCI6MjA5NzM3MDQwNX0.YLvF_Iw4yfGQd71WODXO28GTZIkxEWWTOKVjWWK50KA';
+  // ─────────────────────────────────────────────────
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function fmt(n) { return '$' + Number(n).toLocaleString('en-US'); }
+
+  // ── TAB SWITCHING ──
+  function switchTab(tab) {
+    document.getElementById('tab-drug').style.display = tab === 'drug' ? 'block' : 'none';
+    document.getElementById('tab-doctor').style.display = tab === 'doctor' ? 'block' : 'none';
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='drug')||(i===1&&tab==='doctor')));
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('disclaimer').style.display = 'none';
+  }
+
+  // ── DRUG SEARCH ──
+  async function handleDrugSearch() {
+    const q = document.getElementById('drugInput').value.trim();
+    const resultsEl = document.getElementById('results');
+    const disclaimerEl = document.getElementById('disclaimer');
+    if (!q) return;
+    resultsEl.innerHTML = '<div class="state-msg loading-dots">Searching</div>';
+
+    const { data: drugs } = await db.from('drugs').select('*')
+      .or(`brand_name.ilike.%${q}%,generic_name.ilike.%${q}%`).limit(1);
+
+    if (!drugs?.length) {
+      resultsEl.innerHTML = `<div class="state-msg">No data found for "<strong style="color:var(--text)">${q}</strong>"<br><br><span style="font-size:0.75rem">Phase 1 includes select high-cost drugs. Full CMS database coming soon.</span></div>`;
+      disclaimerEl.style.display = 'none';
+      return;
+    }
+
+    const drug = drugs[0];
+    const { data: usPricing } = await db.from('us_pricing').select('*').eq('drug_id', drug.id);
+    const { data: intlPricing } = await db.from('international_pricing').select('*').eq('drug_id', drug.id).order('monthly_cost', { ascending: true });
+    const { data: patents } = await db.from('patent_data').select('*').eq('drug_id', drug.id);
+
+    if (!usPricing?.length) {
+      resultsEl.innerHTML = `<div class="state-msg">Pricing data not yet available for this drug.</div>`;
+      return;
+    }
+
+    const retailRow = usPricing.find(p => p.price_type === 'retail');
+    const negotiatedRow = usPricing.find(p => p.price_type === 'medicare_negotiated');
+    const usRetail = Number(retailRow?.monthly_cost || 0);
+    const flags = { DE:'🇩🇪', UK:'🇬🇧', CA:'🇨🇦', AU:'🇦🇺', FR:'🇫🇷', JP:'🇯🇵' };
+    const lowest = intlPricing?.length ? Math.min(...intlPricing.map(p => Number(p.monthly_cost))) : usRetail;
+    const markup = (usRetail / lowest).toFixed(1);
+    const lowestCountry = intlPricing?.find(p => Number(p.monthly_cost) === lowest);
+
+    const intlRows = (intlPricing||[]).map(c => `
+      <div class="price-row">
+        <div class="country-info"><span class="country-flag">${c.country_flag||flags[c.country_code]||'🌍'}</span>
+          <div><div class="country-name">${c.country_name}</div><span class="country-label">NATIONAL HEALTH SYSTEM</span></div>
+        </div>
+        <div class="price-amount intl">${fmt(c.monthly_cost)}<span style="font-size:0.65rem;color:var(--muted)">/mo</span></div>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--muted);text-align:right">${(usRetail/Number(c.monthly_cost)).toFixed(1)}× less</div>
+      </div>`).join('');
+
+    const negRow = negotiatedRow ? `
+      <div class="price-row negotiated-row">
+        <div class="country-info"><span class="country-flag">🇺🇸</span>
+          <div><div class="country-name">USA — Medicare Negotiated</div><span class="country-label">CMS MAXIMUM FAIR PRICE (IRA 2022)</span></div>
+        </div>
+        <div class="price-amount negotiated">${fmt(negotiatedRow.monthly_cost)}<span style="font-size:0.65rem;color:var(--muted)">/mo</span></div>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--teal);text-align:right">−${Math.round((1-Number(negotiatedRow.monthly_cost)/usRetail)*100)}% off retail</div>
+      </div>` : '';
+
+    const gapBars = [{ label:'USA', price:usRetail, cls:'us' }, ...(intlPricing||[]).map(c=>({ label:c.country_code, price:Number(c.monthly_cost), cls:'intl' }))]
+      .map(item => `<div class="gap-row"><div class="gap-country">${item.label}</div><div class="gap-track"><div class="gap-fill ${item.cls}" style="width:${Math.round((item.price/usRetail)*100)}%"></div></div><div class="gap-price ${item.cls}">${fmt(item.price)}</div></div>`).join('');
+
+    const patentSection = patents?.length ? `
+      <div class="patent-strip"><span class="patent-icon">⚖️</span>
+        <div class="patent-text"><strong>PATENT: ${patents[0].expiry_date ? new Date(patents[0].expiry_date).toLocaleDateString('en-US',{year:'numeric',month:'long'}).toUpperCase() : 'SEE NOTES'}</strong><br>
+        ${patents[0].notes||''}${patents[0].evergreening_flag?' <span style="color:var(--red);font-family:var(--mono);font-size:0.7rem">⚠ PATENT EVERGREENING DETECTED</span>':''}</div>
+      </div>` : '';
+
+    resultsEl.innerHTML = `
+      <div class="result-card">
+        <div class="drug-header">
+          <div><div class="drug-name">${drug.brand_name}</div><div class="drug-generic">${drug.generic_name}</div><div class="drug-use">${drug.drug_use}</div></div>
+          <div class="markup-badge">US charges ${markup}× more than ${lowestCountry?.country_name||'cheapest country'}</div>
+        </div>
+        <div class="price-table">
+          <div class="price-row us-row">
+            <div class="country-info"><span class="country-flag">🇺🇸</span>
+              <div><div class="country-name">USA — Retail (CVS / Walgreens / Rite Aid)</div><span class="country-label">WITHOUT INSURANCE · CASH PRICE</span></div>
+            </div>
+            <div class="price-amount us">${fmt(usRetail)}<span style="font-size:0.65rem;color:var(--muted)">/mo</span></div>
+            <div style="font-family:var(--mono);font-size:0.7rem;color:var(--red);text-align:right">BASELINE</div>
+          </div>
+          ${negRow}${intlRows}
+        </div>
+        <div class="gap-bar-wrap"><div class="gap-bar-label">PRICE GAP VISUALIZED · MONTHLY COST</div><div class="gap-bars">${gapBars}</div></div>
+        ${patentSection}
+        <div class="source-note">SOURCES: US retail from GoodRx · International from OECD, NHS, Health Canada · Medicare from CMS MFP · Patents from FDA Orange Book · June 2026</div>
+      </div>`;
+
+    disclaimerEl.style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+    setTimeout(() => { document.querySelectorAll('.gap-fill').forEach(el => { const w=el.style.width; el.style.width='0'; requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.width=w;})); }); }, 50);
+  }
+
+  // ── DOCTOR SEARCH ──
+  async function handleDoctorSearch() {
+    const lastName = document.getElementById('doctorInput').value.trim();
+    const specialty = document.getElementById('doctorSpecialty').value;
+    const state = document.getElementById('doctorState').value;
+    const resultsEl = document.getElementById('results');
+    const disclaimerEl = document.getElementById('disclaimer');
+    if (!lastName) return;
+
+    resultsEl.innerHTML = '<div class="state-msg loading-dots">Searching</div>';
+
+    let query = db.from('doctors').select('*').ilike('last_name', `%${lastName}%`);
+    if (specialty) query = query.ilike('specialty', `%${specialty}%`);
+    if (state) query = query.eq('state', state);
+    query = query.limit(5);
+
+    const { data: doctors, error } = await query;
+
+    if (error || !doctors?.length) {
+      resultsEl.innerHTML = `<div class="state-msg">No doctors found matching "<strong style="color:var(--text)">${lastName}</strong>"<br><br><span style="font-size:0.75rem">Phase 2 sample data includes 5 doctors. Full CMS Open Payments database integration coming soon.</span></div>`;
+      disclaimerEl.style.display = 'none';
+      return;
+    }
+
+    const cards = await Promise.all(doctors.map(async doctor => {
+      const { data: payments } = await db.from('doctor_payments').select('*').eq('doctor_id', doctor.id).order('amount', { ascending: false });
+      const { data: prescribing } = await db.from('doctor_prescribing').select('*').eq('doctor_id', doctor.id);
+      const { data: scores } = await db.from('doctor_conflict_scores').select('*').eq('doctor_id', doctor.id).limit(1);
+      const score = scores?.[0];
+      const totalPayments = (payments||[]).reduce((s,p) => s + Number(p.amount), 0);
+
+      const paymentRows = (payments||[]).map(p => `
+        <div class="payment-row">
+          <div><div class="payment-company">${p.company_name}</div><div class="payment-drug">${p.drug_name||'—'}</div></div>
+          <div class="payment-type">${(p.payment_type||'').replace('_',' ').toUpperCase()}</div>
+          <div class="payment-amount">${fmt(p.amount)}</div>
+        </div>`).join('');
+
+      const prescribeRows = (prescribing||[]).map(p => {
+        const ratio = p.specialty_avg_prescriptions ? (p.total_prescriptions / p.specialty_avg_prescriptions).toFixed(1) : null;
+        const isOver = ratio && Number(ratio) > 1.5;
+        return `
+          <div class="prescribe-row">
+            <div><div class="prescribe-drug">${p.brand_name||p.drug_name}</div><div class="prescribe-generic">${p.drug_name}</div></div>
+            <div class="prescribe-count">${Number(p.total_prescriptions).toLocaleString()} rx</div>
+            <div class="prescribe-vs ${isOver?'over':'normal'}">${ratio ? `${ratio}× ${isOver?'above':'near'} avg` : '—'}</div>
+          </div>`}).join('');
+
+      const conflictNote = score ? `
+        <div class="conflict-summary">
+          <div class="conflict-text">${score.notes}</div>
+        </div>` : '';
+
+      return `
+        <div class="doctor-card">
+          <div class="doctor-header">
+            <div>
+              <div class="doctor-name">Dr. ${doctor.first_initial||''} ${doctor.last_name}</div>
+              <div class="doctor-meta">${doctor.specialty||'—'} · ${doctor.city||''}, ${doctor.state||''}</div>
+              <div class="privacy-note">⚠ Displaying last name only · Public record data</div>
+            </div>
+            ${score ? `<div class="score-wrap">
+              <div class="score-badge ${score.score_label}">CONFLICT RISK: ${score.score_label.toUpperCase()}</div>
+              <div class="score-num">Score ${score.score}/100 · ${score.overlapping_drugs} overlapping drug${score.overlapping_drugs!==1?'s':''}</div>
+            </div>` : ''}
+          </div>
+
+          ${payments?.length ? `
+          <div class="doctor-section">
+            <div class="section-title">💰 Pharma Payments Received — 2024 (CMS Open Payments)</div>
+            ${paymentRows}
+            <div class="total-bar">
+              <div class="total-label">Total pharma income 2024</div>
+              <div class="total-amount">${fmt(totalPayments)}</div>
+            </div>
+          </div>` : ''}
+
+          ${prescribing?.length ? `
+          <div class="doctor-section">
+            <div class="section-title">📋 Prescribing Patterns — 2024 (Medicare Part D)</div>
+            ${prescribeRows}
+          </div>` : ''}
+
+          ${conflictNote}
+
+          <div class="source-note">SOURCE: CMS Open Payments (Sunshine Act) · Medicare Part D Prescriber Data · Financial relationships do not imply wrongdoing · Medicare patients only</div>
+        </div>`;
+    }));
+
+    resultsEl.innerHTML = cards.join('');
+    disclaimerEl.style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function quickDrug(name) { document.getElementById('drugInput').value = name; handleDrugSearch(); }
+  function quickDoctor(name, specialty, state) {
+    switchTab('doctor');
+    document.getElementById('doctorInput').value = name;
+    document.getElementById('doctorSpecialty').value = specialty;
+    document.getElementById('doctorState').value = state;
+    handleDoctorSearch();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('drugInput').addEventListener('keydown', e => { if(e.key==='Enter') handleDrugSearch(); });
+    document.getElementById('doctorInput').addEventListener('keydown', e => { if(e.key==='Enter') handleDoctorSearch(); });
+  });
+</script>
+</body>
+</html>
